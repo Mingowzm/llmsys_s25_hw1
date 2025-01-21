@@ -135,8 +135,19 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
     """
     # BEGIN ASSIGN1_1
     # TODO
+    derivatives = {variable.unique_id: deriv}
 
-    raise NotImplementedError("Task Autodiff Not Implemented Yet")
+    for node in topological_sort(variable):
+        d_output = derivatives[node.unique_id]
+        for parent, grad in node.chain_rule(d_output):
+            derivatives[parent.unique_id] = derivatives.get(parent.unique_id, 0) + grad
+
+    for node in topological_sort(variable):
+        if node.is_leaf():
+            node.accumulate_derivative(derivatives[node.unique_id])
+
+
+    # raise NotImplementedError("Task Autodiff Not Implemented Yet")
     # END ASSIGN1_1
 
 
