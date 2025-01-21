@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Iterable, List, Tuple
+from collections import deque
 
 from typing_extensions import Protocol
 
@@ -102,8 +103,22 @@ def topological_sort(variable: Variable) -> Iterable[Variable]:
     """
     # BEGIN ASSIGN1_1
     # TODO
-    
-    raise NotImplementedError("Task Autodiff Not Implemented Yet")
+    topo_order = deque()
+    visited = set()
+
+    def dfs(v):
+        if v.unique_id in visited or v.is_constant():
+            return
+
+        visited.add(v.unique_id)
+        for parent in v.parents:
+            dfs(parent)
+        topo_order.appendleft(v)
+
+    dfs(variable)
+    return topo_order
+
+    # raise NotImplementedError("Task Autodiff Not Implemented Yet")
     # END ASSIGN1_1
 
 
@@ -120,7 +135,7 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
     """
     # BEGIN ASSIGN1_1
     # TODO
-   
+
     raise NotImplementedError("Task Autodiff Not Implemented Yet")
     # END ASSIGN1_1
 
