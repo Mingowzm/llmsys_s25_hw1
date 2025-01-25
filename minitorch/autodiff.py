@@ -146,7 +146,6 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
         if node.is_leaf():
             node.accumulate_derivative(derivatives[node.unique_id])
 
-
     # raise NotImplementedError("Task Autodiff Not Implemented Yet")
     # END ASSIGN1_1
 

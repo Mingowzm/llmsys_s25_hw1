@@ -40,7 +40,7 @@ fn_map = {
   operators.inv_back: 14,
   operators.is_close: 15,
   operators.max: 16,
-  operators.pow: 17, 
+  operators.pow: 17,
   operators.tanh: 18
 }
 
@@ -127,7 +127,7 @@ class CudaKernelOps(TensorOps):
 
             raise NotImplementedError("Zip Function Not Implemented Yet")
             # END ASSIGN1_2
-            
+
             return out
 
         return ret
@@ -164,10 +164,22 @@ class CudaKernelOps(TensorOps):
             # BEGIN ASSIGN1_2
             # TODO
             # 1. Call the tensorReduce function implemented in CUDA
-            
-            raise NotImplementedError("Reduce Function Not Implemented Yet")
+            lib.tensorReduce(
+                out._tensor._storage,                   # float* out
+                out._tensor._shape.astype(np.int32),    # int* out_shape
+                out._tensor._strides.astype(np.int32),  # int* out_strides
+                out.size,                               # out_size
+                a._tensor._storage,                     # float* a_storage
+                a._tensor._shape.astype(np.int32),      # int* a_shape
+                a._tensor._strides.astype(np.int32),    # int* a_strides
+                ctypes.c_int(dim),                      # reduce_dim
+                ctypes.c_double(reduce_value),          # reduce_value
+                ctypes.c_int(len(a.shape)),             # shape_len
+                ctypes.c_int(fn_id)                     # fn_id
+            )
+            # raise NotImplementedError("Reduce Function Not Implemented Yet")
             # END ASSIGN1_2
-            
+
             return out
 
         return ret
@@ -200,7 +212,7 @@ class CudaKernelOps(TensorOps):
             a = a.contiguous().view(np.prod(a.shape[:-2]), a.shape[-2], a.shape[-1])
         if len(b.shape) > 3:
             b = b.contiguous().view(np.prod(b.shape[:-2]), b.shape[-2], b.shape[-1])
-        
+
         assert a.shape[0] == b.shape[0]
         assert a.shape[0] == out.shape[0]
 
@@ -232,10 +244,26 @@ class CudaKernelOps(TensorOps):
         # BEGIN ASSIGN1_2
         # TODO
         # 1. Call the Matmul function implemented in CUDA
-
-        raise NotImplementedError("Matrix Multiply Function Not Implemented Yet")
+        batch_size = out.shape[0]
+        m = out.shape[1]
+        p = out.shape[2]
+        lib.MatrixMultiply(
+            out._tensor._storage,                  # float* out
+            out._tensor._shape.astype(np.int32),   # int* out_shape
+            out._tensor._strides.astype(np.int32), # int* out_strides
+            a._tensor._storage,                    # float* a_storage
+            a._tensor._shape.astype(np.int32),     # int* a_shape
+            a._tensor._strides.astype(np.int32),   # int* a_strides
+            b._tensor._storage,                    # float* b_storage
+            b._tensor._shape.astype(np.int32),     # int* b_shape
+            b._tensor._strides.astype(np.int32),   # int* b_strides
+            ctypes.c_int(batch_size),              # batch
+            ctypes.c_int(m),                       # m
+            ctypes.c_int(p)                        # p
+        )
+        # raise NotImplementedError("Matrix Multiply Function Not Implemented Yet")
         # END ASSIGN1_2
-        
+
         # Undo 3d if we added it.
         if both_2d:
             out = out.view(out.shape[1], out.shape[2])

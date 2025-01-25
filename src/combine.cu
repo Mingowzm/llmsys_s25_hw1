@@ -112,7 +112,7 @@ __device__ float fn(int fn_id, float x, float y=0) {
         return x + y;
       }
     }
-    
+
 }
 
 
@@ -228,31 +228,64 @@ __global__ void MatrixMultiplyKernel(
     int batch = blockIdx.z;
     int a_batch_stride = a_shape[0] > 1 ? a_strides[0] : 0;
     int b_batch_stride = b_shape[0] > 1 ? b_strides[0] : 0;
+    int m = a_shape[1];
+    int n = b_shape[1];
+    int p = b_shape[2];
 
+    float result_val = 0.0f;
 
     /// BEGIN ASSIGN1_2
     /// TODO
     // Hints:
     // 1. Compute the row and column of the output matrix this block will compute
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+    int col = blockIdx.y * blockDim.y + threadIdx.y;
     // 2. Compute the position in the output array that this thread will write to
+    int out_pos = batch * out_strides[0] + row * out_strides[1] + col * out_strides[2];
     // 3. Iterate over tiles of the two input matrices, read the data into shared memory
-    // 4. Synchronize to make sure the data is available to all threads
-    // 5. Compute the output tile for this thread block
-    // 6. Synchronize to make sure all threads are done computing the output tile for (row, col)
+    int numTiles = (n + TILE - 1) / TILE;
+    for (int t = 0; t < numTiles; t++) {
+      //   A: load a tile from row= row, col= t*TILE + threadIdx.y
+      int A_col = t * TILE + threadIdx.y;
+      if (row < m && A_col < n) {
+          int a_pos = batch * a_strides[0] + row * a_strides[1] + A_col * a_strides[2];
+          a_shared[threadIdx.x][threadIdx.y] = a_storage[a_pos];
+      } else {
+          a_shared[threadIdx.x][threadIdx.y] = 0.0f;
+      }
+      //   B: load a tile from row= t*TILE + threadIdx.x, col= col
+      int B_row = t * TILE + threadIdx.x;
+      if (col < p && B_row < n) {
+          int b_pos = batch * b_strides[0] + B_row * b_strides[1] + col * b_strides[2];
+          b_shared[threadIdx.x][threadIdx.y] = b_storage[b_pos];
+      } else {
+          b_shared[threadIdx.x][threadIdx.y] = 0.0f;
+      }
+      // 4. Synchronize to make sure the data is available to all threads
+      __syncthreads();
+      // 5. Compute the output tile for this thread block
+      for (int k = 0; k < TILE; k++) {
+          result_val += a_shared[threadIdx.x][k] * b_shared[k][threadIdx.y];
+      }
+      // 6. Synchronize to make sure all threads are done computing the output tile for (row, col)
+      __syncthreads();
+    }
     // 7. Write the output to global memory
-
-    assert(false && "Not Implemented");
+    if (row < m && col < p) {
+        out[out_pos] = result_val;
+    }
+    // assert(false && "Not Implemented");
     /// END ASSIGN1_2
 }
 
 
 __global__ void mapKernel(
-    float* out, 
-    int* out_shape, 
-    int* out_strides, 
-    int out_size, 
-    float* in_storage, 
-    int* in_shape, 
+    float* out,
+    int* out_shape,
+    int* out_strides,
+    int out_size,
+    float* in_storage,
+    int* in_shape,
     int* in_strides,
     int shape_size,
     int fn_id
@@ -283,18 +316,27 @@ __global__ void mapKernel(
 
     int out_index[MAX_DIMS];
     int in_index[MAX_DIMS];
-    
+
     /// BEGIN ASSIGN1_2
     /// TODO
     // Hints:
     // 1. Compute the position in the output array that this thread will write to
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= out_size) return;
     // 2. Convert the position to the out_index according to out_shape
+    to_index(idx, out_shape, out_index, shape_size);
     // 3. Broadcast the out_index to the in_index according to in_shape (optional in some cases)
+    broadcast_index(out_index, out_shape, in_shape, in_index, shape_size, shape_size);
     // 4. Calculate the position of element in in_array according to in_index and in_strides
+    int in_pos = index_to_position(in_index, in_strides, shape_size);
     // 5. Calculate the position of element in out_array according to out_index and out_strides
+    int out_pos = index_to_position(out_index, out_strides, shape_size);
     // 6. Apply the unary function to the input element and write the output to the out memory
-    
-    assert(false && "Not Implemented");
+    float in_val  = in_storage[in_pos];
+    float out_val = fn(fn_id, in_val);
+    out[out_pos] = out_val;
+
+    // assert(false && "Not Implemented");
     /// END ASSIGN1_2
 }
 
@@ -350,7 +392,7 @@ __global__ void reduceKernel(
     // 3. Initialize the reduce_value to the output element
     // 4. Iterate over the reduce_dim dimension of the input array to compute the reduced value
     // 5. Write the reduced value to out memory
-    
+
     assert(false && "Not Implemented");
     /// END ASSIGN1_2
 }
@@ -365,8 +407,8 @@ __global__ void zipKernel(
     int* a_shape,
     int* a_strides,
     int a_shape_size,
-    float* b_storage, 
-    int* b_shape, 
+    float* b_storage,
+    int* b_shape,
     int* b_strides,
     int b_shape_size,
     int fn_id
@@ -416,7 +458,7 @@ __global__ void zipKernel(
     // 6. Broadcast the out_index to the b_index according to b_shape
     // 7.Calculate the position of element in b_array according to b_index and b_strides
     // 8. Apply the binary function to the input elements in a_array & b_array and write the output to the out memory
-    
+
     assert(false && "Not Implemented");
     /// END ASSIGN1_2
 }
@@ -471,7 +513,7 @@ void MatrixMultiply(
 
     // Copy back to the host
     cudaMemcpy(out, d_out, batch * m * p * sizeof(float), cudaMemcpyDeviceToHost);
-    
+
     cudaDeviceSynchronize();
 
     // Check CUDA execution
@@ -494,12 +536,12 @@ void MatrixMultiply(
 }
 
 void tensorMap(
-    float* out, 
-    int* out_shape, 
-    int* out_strides, 
-    int out_size, 
-    float* in_storage, 
-    int* in_shape, 
+    float* out,
+    int* out_shape,
+    int* out_strides,
+    int out_size,
+    float* in_storage,
+    int* in_shape,
     int* in_strides,
     int in_size,
     int shape_size,
@@ -522,14 +564,14 @@ void tensorMap(
     cudaMemcpy(d_out_strides, out_strides, shape_size * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_in_shape, in_shape, shape_size * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_in_strides, in_strides, shape_size * sizeof(int), cudaMemcpyHostToDevice);
-    
+
     int threadsPerBlock = 32;
     int blocksPerGrid = (out_size + threadsPerBlock - 1) / threadsPerBlock;
     mapKernel<<<blocksPerGrid, threadsPerBlock>>>(
-      d_out, d_out_shape, d_out_strides, out_size, 
-      d_in, d_in_shape, d_in_strides, 
+      d_out, d_out_shape, d_out_strides, out_size,
+      d_in, d_in_shape, d_in_strides,
       shape_size, fn_id);
-    
+
     // Copy back to the host
     cudaMemcpy(out, d_out, out_size * sizeof(float), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
@@ -552,18 +594,18 @@ void tensorMap(
 
 
 void tensorZip(
-    float* out, 
-    int* out_shape, 
-    int* out_strides, 
+    float* out,
+    int* out_shape,
+    int* out_strides,
     int out_size,
     int out_shape_size,
-    float* a_storage, 
-    int* a_shape, 
+    float* a_storage,
+    int* a_shape,
     int* a_strides,
     int a_size,
     int a_shape_size,
-    float* b_storage, 
-    int* b_shape, 
+    float* b_storage,
+    int* b_shape,
     int* b_strides,
     int b_size,
     int b_shape_size,
@@ -629,14 +671,14 @@ void tensorZip(
 
 
 void tensorReduce(
-    float* out, 
-    int* out_shape, 
-    int* out_strides, 
-    int out_size, 
-    float* a_storage, 
-    int* a_shape, 
-    int* a_strides, 
-    int reduce_dim, 
+    float* out,
+    int* out_shape,
+    int* out_strides,
+    int out_size,
+    float* a_storage,
+    int* a_shape,
+    int* a_strides,
+    int reduce_dim,
     float reduce_value,
     int shape_size,
     int fn_id
@@ -659,16 +701,16 @@ void tensorReduce(
     cudaMemcpy(d_out_strides, out_strides, shape_size * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_a_shape, a_shape, shape_size * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_a_strides, a_strides, shape_size * sizeof(int), cudaMemcpyHostToDevice);
-    
+
     // Launch kernel
     int threadsPerBlock = 32;
     int blocksPerGrid = (out_size + threadsPerBlock - 1) / threadsPerBlock;
     reduceKernel<<<blocksPerGrid, threadsPerBlock>>>(
-        d_out, d_out_shape, d_out_strides, out_size, 
-        d_a, d_a_shape, d_a_strides, 
+        d_out, d_out_shape, d_out_strides, out_size,
+        d_a, d_a_shape, d_a_strides,
         reduce_dim, reduce_value, shape_size, fn_id
     );
-    
+
     // Copy back to the host
     cudaMemcpy(out, d_out, out_size * sizeof(float), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
