@@ -124,10 +124,27 @@ class CudaKernelOps(TensorOps):
             # BEGIN ASSIGN1_2
             # TODO
             # 1. Call the tensorZip function implemented in CUDA
+            lib.tensorZip(
+                out._tensor._storage,
+                out._tensor._shape.astype(np.int32),
+                out._tensor._strides.astype(np.int32),
+                out.size,
+                len(out.shape),
+                a._tensor._storage,
+                a._tensor._shape.astype(np.int32),
+                a._tensor._strides.astype(np.int32),
+                a.size,
+                len(a.shape),
+                b._tensor._storage,
+                b._tensor._shape.astype(np.int32),
+                b._tensor._strides.astype(np.int32),
+                b.size,
+                len(b.shape),
+                fn_id,
+            )
 
-            raise NotImplementedError("Zip Function Not Implemented Yet")
+            # raise NotImplementedError("Zip Function Not Implemented Yet")
             # END ASSIGN1_2
-
             return out
 
         return ret
@@ -172,10 +189,10 @@ class CudaKernelOps(TensorOps):
                 a._tensor._storage,                     # float* a_storage
                 a._tensor._shape.astype(np.int32),      # int* a_shape
                 a._tensor._strides.astype(np.int32),    # int* a_strides
-                ctypes.c_int(dim),                      # reduce_dim
-                ctypes.c_double(reduce_value),          # reduce_value
-                ctypes.c_int(len(a.shape)),             # shape_len
-                ctypes.c_int(fn_id)                     # fn_id
+                dim,                                    # reduce_dim
+                reduce_value,                           # reduce_value
+                len(a.shape),                           # shape_len
+                fn_id                                   # fn_id
             )
             # raise NotImplementedError("Reduce Function Not Implemented Yet")
             # END ASSIGN1_2
