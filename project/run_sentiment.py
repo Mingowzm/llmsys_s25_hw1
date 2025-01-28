@@ -55,7 +55,7 @@ class Linear(minitorch.Module):
         w_reshaped = self.weights.view(in_size, self.out_size)
         out = x_reshaped @ w_reshaped
         out = out.view(batch, self.out_size)
-        out = out + self.bias
+        out = out + self.bias.view(1, self.out_size)
         return out
 
         # END ASSIGN1_3
