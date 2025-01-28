@@ -391,11 +391,10 @@ __global__ void reduceKernel(
     int thread_id = threadIdx.x + blockIdx.x * blockDim.x;
     if (thread_id >= out_size) return;
     // 2. Convert the out_pos to the out_index according to out_shape
-    int out_index[MAX_DIMS];
     to_index(thread_id, out_shape, out_index, shape_size);
     int out_pos = index_to_position(out_index, out_strides, shape_size);
     // 3. Initialize the reduce_value to the output element
-    float reduced = reduce_value
+    float reduced = reduce_value;
     // 4. Iterate over the reduce_dim dimension of the input array to compute the reduced value
     for (int i = 0; i < a_shape[reduce_dim]; i++) {
       int input_index[MAX_DIMS];
@@ -467,7 +466,7 @@ __global__ void zipKernel(
     /// TODO
     // Hints:
     // 1. Compute the position in the output array that this thread will write to
-    nt thread_id = threadIdx.x + blockIdx.x * blockDim.x;
+    int thread_id = threadIdx.x + blockIdx.x * blockDim.x;
     if (thread_id >= out_size) return;
 
     // 2. Convert the position to the out_index according to out_shape
@@ -490,7 +489,7 @@ __global__ void zipKernel(
 
     // 8. Apply the binary function to the input elements in a_array & b_array and write the output to the out memory
     out[out_pos] = fn(fn_id, a_storage[a_pos], b_storage[b_pos]);
-    
+
     // assert(false && "Not Implemented");
     /// END ASSIGN1_2
 }
