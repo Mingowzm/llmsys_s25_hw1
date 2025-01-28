@@ -138,9 +138,12 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
     derivatives = {variable.unique_id: deriv}
 
     for node in topological_sort(variable):
-        d_output = derivatives[node.unique_id]
-        for parent, grad in node.chain_rule(d_output):
-            derivatives[parent.unique_id] = derivatives.get(parent.unique_id, 0) + grad
+      if node.is_leaf():
+        continue
+
+      d_output = derivatives[node.unique_id]
+      for parent, grad in node.chain_rule(d_output):
+          derivatives[parent.unique_id] = derivatives.get(parent.unique_id, 0) + grad
 
     for node in topological_sort(variable):
         if node.is_leaf():
