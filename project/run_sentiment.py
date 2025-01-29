@@ -51,11 +51,11 @@ class Linear(minitorch.Module):
         # 3. Apply Matrix Multiplication on input x and self.weights, and reshape the output to be of size (batch, self.out_size)
         # 4. Add self.bias
         # HINT: You can use the view function of minitorch.tensor for reshape
-        x_reshaped = x.view(batch, in_size)
-        w_reshaped = self.weights.view(in_size, self.out_size)
-        out = x_reshaped @ w_reshaped
-        out = out.view(batch, self.out_size)
-        out = out + self.bias.view(1, self.out_size)
+        x = x.view(batch, in_size)
+        w = self.weights.value.view(in_size, self.out_size)
+        out = x @ w
+        bias = self.bias.value.view(1, self.out_size)
+        out = out + bias
         return out
 
         # END ASSIGN1_3
@@ -108,13 +108,12 @@ class Network(minitorch.Module):
         # 4. Apply the second linear layer
         # 5. Apply sigmoid and reshape to (batch)
         # HINT: You can use minitorch.dropout for dropout, and minitorch.tensor.relu for ReLU
-        x = embeddings.mean(dim=1)                  # shape (batch, embedding_dim)
-        x = self.linear1(x)                         # shape (batch, hidden_dim)
-        x = x.relu()
+        x = embeddings.mean(dim=1)
+        batch, seq_len, embed_dim = x.shape
+        x = self.linear1(x.view(batch, embed_dim)).relu()
         x = minitorch.dropout(x, self.dropout_prob)
-        x = self.linear2(x)                         # shape (batch, 1)
-        x = x.sigmoid()
-        x = x.view(x.shape[0])                      # shape (batch,)
+        x = self.linear2(x).sigmoid()
+        x = x.view(batch)
         return x
         # raise NotImplementedError
 
