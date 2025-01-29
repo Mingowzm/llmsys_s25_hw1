@@ -144,6 +144,13 @@ def get_accuracy(predictions_array):
     return correct / len(predictions_array)
 
 
+def BCE_loss(pred, target):
+    # BCE = - (y * log(p) + (1 - y) * log(1 - p))
+    one_scalar = minitorch.Tensor.make([1.0], (1,), backend=pred.backend)
+    ones_tensor = pred.zeros() + one_scalar
+    return -(target * pred.log() + (ones_tensor - target) * (ones_tensor - pred).log())
+
+
 best_val = 0.0
 
 
@@ -220,7 +227,7 @@ class SentenceSentimentTrain:
                 # 3. Get the model output (as out)
                 output = model(x)
                 # 4. Calculate the loss using Binary Crossentropy Loss
-                loss = minitorch.binary_cross_entropy(out, y).mean()
+                loss = BCE_loss(output, y).mean()
                 # 5. Call backward function of the loss
                 loss.backward()
                 # 6. Use Optimizer to take a gradient step
@@ -230,7 +237,7 @@ class SentenceSentimentTrain:
 
 
                 # Save training results
-                train_predictions += get_predictions_array(y, out)
+                train_predictions += get_predictions_array(y, output)
                 total_loss += loss[0]
                 n_batches += 1
 
@@ -254,12 +261,12 @@ class SentenceSentimentTrain:
                     requires_grad=False
                 )
                 # 2. Get the output of the model
-                out_val = model(x_val)
+                output_val = model(x_val)
                 # 3. Obtain validation predictions using the get_predictions_array function, and add to the validation_predictions list
-                validation_predictions += get_predictions_array(y_val, out_val)
+                validation_predictions += get_predictions_array(y_val, output_val)
                 # 4. Obtain the validation accuracy using the get_accuracy function, and add to the validation_accuracy list
-                validation_accuracy.append(get_accuracy(validation_predictions))
-
+                val_accuracy = get_accuracy(validation_predictions)
+                validation_accuracy.append(val_accuracy)
                 # raise NotImplementedError
 
                 # END ASSIGN1_4
