@@ -204,12 +204,28 @@ class SentenceSentimentTrain:
                 # TODO
                 # 1. Create x and y using minitorch.tensor function through our CudaKernelOps backend
                 # 2. Set requires_grad=True for x and y
-                # 3. Get the model output (as out)
-                # 4. Calculate the loss using Binary Crossentropy Loss
-                # 5. Call backward function of the loss
-                # 6. Use Optimizer to take a gradient step
+                x = minitorch.tensor(
+                    ls=X_train[example_num : example_num + batch_size],
+                    backend=BACKEND,
+                    requires_grad=True,
+                )
 
-                raise NotImplementedError
+                y = minitorch.tensor(
+                    ls=y_train[example_num : example_num + batch_size],
+                    backend=BACKEND,
+                    requires_grad=True,
+                )
+
+                optim.zero_grad()
+                # 3. Get the model output (as out)
+                output = model(x)
+                # 4. Calculate the loss using Binary Crossentropy Loss
+                loss = minitorch.binary_cross_entropy(out, y).mean()
+                # 5. Call backward function of the loss
+                loss.backward()
+                # 6. Use Optimizer to take a gradient step
+                optim.step()
+                # raise NotImplementedError
                 # END ASSIGN1_4
 
 
@@ -227,11 +243,24 @@ class SentenceSentimentTrain:
                 # BEGIN ASSIGN1_4
                 # TODO
                 # 1. Create x and y using minitorch.tensor function through our CudaKernelOps backend
+                x_val = minitorch.tensor(
+                    ls=X_val,
+                    backend=BACKEND,
+                    requires_grad=False
+                )
+                y_val = minitorch.tensor(
+                    ls=y_val,
+                    backend=BACKEND,
+                    requires_grad=False
+                )
                 # 2. Get the output of the model
+                out_val = model(x_val)
                 # 3. Obtain validation predictions using the get_predictions_array function, and add to the validation_predictions list
+                validation_predictions += get_predictions_array(y_val, out_val)
                 # 4. Obtain the validation accuracy using the get_accuracy function, and add to the validation_accuracy list
+                validation_accuracy.append(get_accuracy(validation_predictions))
 
-                raise NotImplementedError
+                # raise NotImplementedError
 
                 # END ASSIGN1_4
 
