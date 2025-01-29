@@ -232,7 +232,7 @@ __global__ void MatrixMultiplyKernel(
     int n = b_shape[1];
     int p = b_shape[2];
 
-    float result_val = 0.0f;
+    float accumulator = 0.0f;
 
     /// BEGIN ASSIGN1_2
     /// TODO
@@ -245,34 +245,32 @@ __global__ void MatrixMultiplyKernel(
     // 3. Iterate over tiles of the two input matrices, read the data into shared memory
     int num_tiles = (n + TILE - 1) / TILE;
     for (int i = 0; i < num_tiles; i++) {
-      // A: load a tile from row= row, col= t*TILE + threadIdx.y
-      int A_col = i * TILE + threadIdx.y;
-      if (row < m && A_col < n) {
-          int a_position = batch * a_strides[0] + row * a_strides[1] + A_col * a_strides[2];
+      int a_col = i * TILE + threadIdx.y;
+      if (row >= m || a_col >= n) {
+        a_shared[threadIdx.x][threadIdx.y] = 0.0f;
+      } else {
+        int a_position = batch * a_batch_stride + row * a_strides[1] + a_col * a_strides[2];
           a_shared[threadIdx.x][threadIdx.y] = a_storage[a_position];
-      } else {
-          a_shared[threadIdx.x][threadIdx.y] = 0.0f;
       }
-      // B: load a tile from row= t*TILE + threadIdx.x, col= col
-      int B_row = i * TILE + threadIdx.x;
-      if (col < p && B_row < n) {
-          int b_pos = batch * b_strides[0] + B_row * b_strides[1] + col * b_strides[2];
-          b_shared[threadIdx.x][threadIdx.y] = b_storage[b_pos];
+      int b_row = i * TILE + threadIdx.x;
+      if (col >= p || b_row >= n) {
+        b_shared[threadIdx.x][threadIdx.y] = 0.0f;
       } else {
-          b_shared[threadIdx.x][threadIdx.y] = 0.0f;
+        int b_pos = batch * b_batch_stride + b_row * b_strides[1] + col * b_strides[2];
+        b_shared[threadIdx.x][threadIdx.y] = b_storage[b_pos];
       }
       // 4. Synchronize to make sure the data is available to all threads
       __syncthreads();
       // 5. Compute the output tile for this thread block
       for (int j = 0; j < TILE; j++) {
-          result_val += a_shared[threadIdx.x][j] * b_shared[j][threadIdx.y];
+        accumulator += a_shared[threadIdx.x][j] * b_shared[j][threadIdx.y];
       }
       // 6. Synchronize to make sure all threads are done computing the output tile for (row, col)
       __syncthreads();
     }
     // 7. Write the output to global memory
     if (row < m && col < p) {
-        out[out_position] = result_val;
+        out[out_position] = accumulator;
     }
     // assert(false && "Not Implemented");
     /// END ASSIGN1_2
